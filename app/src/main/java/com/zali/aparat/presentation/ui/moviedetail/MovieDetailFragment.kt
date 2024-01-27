@@ -40,6 +40,9 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Observer
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import androidx.navigation.NavController
+import androidx.navigation.NavDirections
+import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
@@ -49,13 +52,15 @@ import com.zali.aparat.presentation.ui.moviedetail.listbottom.BottomSheetAdapter
 import com.zali.aparat.presentation.ui.moviedetail.listbottom.Interaction
 import com.zali.aparat.presentation.ui.notification.FileAccessPermissionHandler
 import com.zali.aparat.presentation.ui.notification.NotificationPermissionHandler
+import com.zali.aparat.util.BackPressedHandler
 import es.dmoral.toasty.Toasty
 import java.io.File
 
 
 class MovieDetailFragment : Fragment(), Interaction,
     FileAccessPermissionHandler.PermissionCallback,
-    NotificationPermissionHandler.PermissionCallback {
+    NotificationPermissionHandler.PermissionCallback,
+    BackPressedHandler {
 
     private val cancelReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -158,18 +163,22 @@ class MovieDetailFragment : Fragment(), Interaction,
         fullScreen = view.findViewById(R.id.scaling)!!
 
         fullScreen.setOnClickListener {
-            if (!isFullScreen) {
+            isFullScreen = !isFullScreen
+            if (isFullScreen) {
                 applyFullScreenLayout()
-                isFullScreen = true
+                Log.d(TAG, "Entering full screen mode")
             } else {
-                isFullScreen = false
                 applyDefaultScreenLayout()
+                Log.d(TAG, "Exiting full screen mode")
             }
         }
 
+
         savedInstanceState?.getBoolean("isFullScreen")?.let {
+            isFullScreen = it
             if (it) applyFullScreenLayout()
         }
+
         binding.imgMore.setOnClickListener {
             showBottomSheet()
         }
@@ -434,6 +443,24 @@ class MovieDetailFragment : Fragment(), Interaction,
 
     override fun onNotificationPermissionDenied() {
         Toasty.error(requireContext(), "دسترسی نوتیفیکیشن برای نشان دادن روند دانلود لازم است", Toast.LENGTH_SHORT, true).show();
+    }
+
+    override fun onBackPressed() {
+        Log.d(TAG, "onBackPressed: isFullScreen = $isFullScreen")
+
+        if (isFullScreen) {
+            applyDefaultScreenLayout()
+            isFullScreen = false
+            Log.d(TAG, "Exiting full screen mode")
+        } else {
+            if (activity != null) {
+                findNavController().navigate(MovieDetailFragmentDirections.actionMovieDetailFragmentToHomeFragment(""))
+                Log.d(TAG, "Navigating to HomeFragment")
+            }
+        }
+    }
+    fun NavController.safeNavigate(direction: NavDirections) {
+        currentDestination?.getAction(direction.actionId)?.run { navigate(direction) }
     }
 }
 
